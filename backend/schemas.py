@@ -76,3 +76,16 @@ class UserResponse(BaseModel):
 class UserMusicCreateWithUser(UserMusicBase):
     user_id: int
     music_id: int
+
+class CommentCreate(BaseModel):
+    music_id: int
+    content: str = Field(..., min_length=1, max_length=5000)
+    rating: Optional[int] = Field(None, ge=1, le=5)
+
+class CommentResponse(BaseModel):
+    id: int
+    user_id: int
+    music_id: int
+    content: str
+    rating: Optional[int]
+    created_at: datetime

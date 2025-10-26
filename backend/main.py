@@ -279,6 +279,57 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
 def list_users(db: Session = Depends(get_db)):
     return db.query(models.User).all()
 
+
+# --------------------------------------------------------------------
+# Comments Endpoints
+# --------------------------------------------------------------------
+
+@app.post(
+    "/comments",
+    response_model=schemas.CommentResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add a comment/review to a music item",
+    tags=["Comments"]
+)
+def add_comment(
+    comment_in: schemas.CommentCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    music = db.query(models.Music).filter(models.Music.id == comment_in.music_id).first()
+    if not music:
+        raise HTTPException(status_code=404, detail="Music not found")
+    comment = models.Comment(
+        user_id=current_user.id,
+        music_id=comment_in.music_id,
+        content=comment_in.content,
+        rating=comment_in.rating
+    )
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+    return comment
+
+@app.get(
+    "/music/{music_id}/comments",
+    response_model=List[schemas.CommentResponse],
+    summary="List comments for a music item",
+    tags=["Comments"]
+)
+def list_comments_for_music(
+    music_id: int,
+    db: Session = Depends(get_db)
+):
+    music = db.query(models.Music).filter(models.Music.id == music_id).first()
+    if not music:
+        raise HTTPException(status_code=404, detail="Music not found")
+    return (
+        db.query(models.Comment)
+        .filter(models.Comment.music_id == music_id)
+        .order_by(models.Comment.created_at.desc())
+        .all()
+    )
+
 # --------------------------------------------------------------------
 # Root Endpoint
 # --------------------------------------------------------------------
@@ -298,4 +349,4 @@ def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=1000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

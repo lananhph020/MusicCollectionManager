@@ -25,6 +25,8 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     
     music_items = relationship("UserMusic", back_populates="user", cascade="all, delete-orphan")
+    comments = relationship("Comment", back_populates="user", cascade="all, delete-orphan")
+
     
     def is_admin(self):
         """Check if user has admin role"""
@@ -43,6 +45,8 @@ class Music(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     
     user_items = relationship("UserMusic", back_populates="music", cascade="all, delete-orphan")
+    comments = relationship("Comment", back_populates="music", cascade="all, delete-orphan")
+
 
 class UserMusic(Base):
     __tablename__ = "user_music"
@@ -55,3 +59,16 @@ class UserMusic(Base):
     
     user = relationship("User", back_populates="music_items")
     music = relationship("Music", back_populates="user_items")
+
+class Comment(Base):
+    __tablename__ = "comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    music_id = Column(Integer, ForeignKey("music.id", ondelete="CASCADE"), nullable=False)
+    content = Column(String, nullable=False)
+    rating = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="comments")
+    music = relationship("Music", back_populates="comments")
