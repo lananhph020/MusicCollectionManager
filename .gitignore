@@ -1,0 +1,33 @@
+# --- OS / editors ---
+.DS_Store
+.idea/
+.vscode/
+Thumbs.db
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.log
+.venv/
+venv/
+.env
+*.env
+
+# --- DB / data ---
+*.sqlite
+*.sqlite3
+*.db
+
+# --- Node / frontend ---
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.eslintcache
+
+# --- Backend artifacts in your tree ---
+backend/__pycache__/
+backend/*.db
+backend/*.sqlite*
+backend/Python_FastAPI_SourceCode.zip

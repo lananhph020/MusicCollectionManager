@@ -1,0 +1,169 @@
+/* ====== Clean Minimal UI – Neutral + Teal accent ====== */
+/* Typeface scales slightly, generous whitespace, soft shadows, crisp borders */
+
+:root{
+  /* Light theme */
+  --bg: #fafbfc;
+  --surface: #ffffff;
+  --text: #1f2937;         /* slate-800 */
+  --muted: #6b7280;        /* slate-500 */
+  --border: #e5e7eb;       /* slate-200 */
+  --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
+
+  /* Accent */
+  --accent: #10b981;       /* emerald-500 */
+  --accent-ink: #0b3b2f;   /* deep ink for tags when on light bg */
+  --accent-weak: #ecfdf5;  /* emerald-50 */
+
+  /* Semantic */
+  --danger: #ef4444;       /* red-500 */
+
+  /* Radii */
+  --radius: 14px;
+}
+
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0b0d12;          /* near-black with blue tint */
+    --surface:#12151b;     /* dark card */
+    --text:#e6e9ef;        /* light text */
+    --muted:#a0a7b4;       /* muted text */
+    --border:#1f2430;      /* dark border */
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 14px 40px rgba(0,0,0,.35);
+
+    --accent:#34d399;      /* emerald-400 */
+    --accent-ink:#0a2a22;
+    --accent-weak:#0d2a21; /* subtle dark tag bg */
+    --danger:#f87171;      /* red-400 */
+  }
+}
+
+/* ====== Base ====== */
+*{box-sizing:border-box}
+html,body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ====== Layout ====== */
+header{
+  position: sticky; top: 0; z-index: 10;
+  backdrop-filter: blur(10px);
+  background: color-mix(in oklab, var(--surface) 96%, transparent);
+  border-bottom: 1px solid var(--border);
+  display:flex; align-items:center; gap:1rem;
+  padding:.9rem 1.1rem;
+}
+header a{ color:inherit; text-decoration:none; }
+header nav a{
+  margin-right:.9rem; padding:.35rem .6rem; border-radius:10px;
+  transition: background .15s ease, color .15s ease;
+}
+header nav a:hover{ background: var(--accent-weak); color: var(--accent-ink); }
+
+main{
+  max-width: 1040px;
+  margin: 1.25rem auto;
+  padding: .5rem 1rem;
+  display:grid; gap: 1rem;
+}
+
+/* ====== Card ====== */
+section{
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.05rem 1.15rem;
+}
+
+/* ====== Typography ====== */
+h1{ font-size: 1.35rem; letter-spacing:.1px; margin:.1rem 0 .2rem }
+h2{ font-size: 1.15rem; margin:0 0 .4rem }
+h3{ font-size: 1.02rem; margin:.2rem 0 .3rem }
+.muted{ color:var(--muted) }
+
+/* ====== Lists ====== */
+ul{ list-style:none; padding:0; margin:0 }
+li.row{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:.9rem; padding:.6rem 0;
+  border-bottom: 1px dashed var(--border);
+}
+
+/* ====== Controls ====== */
+button, input, select, textarea{
+  font: inherit; color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: .6rem .8rem;
+  transition: transform .06s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
+  outline: none;
+}
+input:focus, select:focus, textarea:focus{
+  border-color: color-mix(in oklab, var(--accent) 55%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 18%, transparent);
+}
+button{ cursor:pointer; }
+button:hover{ transform: translateY(-1px); box-shadow: 0 8px 20px rgba(0,0,0,.08); }
+button:active{ transform: translateY(0); box-shadow: none; }
+
+/* Primary & danger */
+.btn-primary{
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+.btn-primary:hover{ filter: brightness(1.03); }
+.btn-danger{
+  background: var(--danger);
+  border-color: var(--danger);
+  color: white;
+}
+.btn-danger:hover{ filter: brightness(1.03); }
+
+/* Small helpers */
+form{ display:grid; gap:.7rem }
+.row-wrap{ display:flex; gap:.6rem; flex-wrap:wrap; align-items:center }
+.right{ margin-left:auto }
+.tag{
+  display:inline-block; padding:.2rem .55rem; border-radius:999px;
+  background: var(--accent-weak); color: var(--accent-ink); font-weight:600; font-size:.85em;
+}
+
+/* Spacing polish inside cards for stacked content */
+section > * + *{ margin-top: .6rem }
+
+/* Links inside content */
+a{ color: inherit; }
+a:hover{ color: var(--accent); }
+
+/* Tables (if you decide to add any later) */
+table{ width:100%; border-collapse:collapse; }
+td, th{ padding:.6rem .4rem; border-bottom:1px solid var(--border); text-align:left; }
+thead th{ font-weight:600; color:var(--muted) }
+
+/* --- Force light mode, ignore prefers-color-scheme --- */
+:root {
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* override the dark vars back to light */
+    --bg: #fafbfc;
+    --surface: #ffffff;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --accent: #10b981;
+    --accent-ink: #0b3b2f;
+    --accent-weak: #ecfdf5;
+    --danger: #ef4444;
+  }
+}
