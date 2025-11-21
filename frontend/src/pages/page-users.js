@@ -1,5 +1,5 @@
-import {LitElement, html, css} from 'lit';
-import { usersApi, getCurrentUser, setCurrentUser } from '../services/api.js';
+import { LitElement, html, css } from 'lit';
+import { usersApi } from '../services/api.js';
 
 // Robustly find the <form> for submit handlers across shadow DOM/HMR
 function getEventForm(e) {
@@ -22,14 +22,13 @@ export class PageUsers extends LitElement {
     [role="alert"]{color:#b00020}
     .row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
   `;
-  static properties = { users:{state:true}, error:{state:true}, loading:{state:true}, currentId:{state:true} };
+  static properties = { users:{state:true}, error:{state:true}, loading:{state:true} };
 
   constructor(){ 
     super(); 
     this.users=[]; 
     this.error=null; 
     this.loading=true; 
-    this.currentId=getCurrentUser(); 
   }
 
   connectedCallback(){ 

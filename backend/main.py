@@ -1,17 +1,20 @@
-from fastapi import FastAPI, HTTPException, status, Depends, Header
+from fastapi import FastAPI, HTTPException, status, Depends
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
 import models
 import schemas
 from database import engine, get_db
+import auth
+from auth import get_current_user, require_admin
+import keycloak_config
 
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Music Collection Manager API",
-    description="API for managing music collections",
-    version="1.0.0"
+    description="API for managing music collections with Keycloak authentication",
+    version="2.0.0"
 )
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,24 +27,104 @@ app.add_middleware(
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "X-User-ID"],
+    allow_headers=["Content-Type", "Authorization"],  # Changed from X-User-ID to Authorization
 )
 
+# --------------------------------------------------------------------
+# Authentication Endpoints
+# --------------------------------------------------------------------
+@app.get(
+    "/auth/login-url",
+    summary="Get Keycloak login URL",
+    description="Returns the Keycloak login URL for OAuth2 authorization code flow",
+    tags=["Authentication"]
+)
+def get_login_url():
+    """Get the Keycloak login URL to redirect users for authentication"""
+    return {
+        "login_url": auth.get_keycloak_login_url(),
+        "keycloak_server": keycloak_config.KEYCLOAK_SERVER_URL,
+        "realm": keycloak_config.KEYCLOAK_REALM
+    }
 
-# Dependency to get current user from header (simple auth for demonstration)
-def get_current_user(
-    x_user_id: int = Header(..., alias="X-User-ID"),
-    db: Session = Depends(get_db)
-) -> models.User:
-    user = db.query(models.User).filter(models.User.id == x_user_id).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    return user
+@app.post(
+    "/auth/token",
+    response_model=schemas.Token,
+    summary="Exchange authorization code for token",
+    description="Exchange the authorization code received from Keycloak for access and refresh tokens",
+    tags=["Authentication"]
+)
+def exchange_token(token_data: schemas.TokenExchange):
+    """Exchange authorization code for access token"""
+    token_response = auth.exchange_code_for_token(
+        code=token_data.code,
+        redirect_uri=token_data.redirect_uri
+    )
+    return schemas.Token(
+        access_token=token_response["access_token"],
+        refresh_token=token_response.get("refresh_token"),
+        token_type="bearer",
+        expires_in=token_response.get("expires_in")
+    )
 
-# Dependency to check if user is admin
-def require_admin(current_user: models.User = Depends(get_current_user)) -> models.User:
-    if not current_user.is_admin():
-        raise HTTPException(status_code=403, detail="Admin access required")
+@app.post(
+    "/auth/refresh",
+    response_model=schemas.Token,
+    summary="Refresh access token",
+    description="Get a new access token using a refresh token",
+    tags=["Authentication"]
+)
+def refresh_token(refresh_data: schemas.RefreshTokenRequest):
+    """Refresh the access token using refresh token"""
+    token_response = auth.refresh_access_token(refresh_data.refresh_token)
+    return schemas.Token(
+        access_token=token_response["access_token"],
+        refresh_token=token_response.get("refresh_token"),
+        token_type="bearer",
+        expires_in=token_response.get("expires_in")
+    )
+
+@app.post(
+    "/auth/logout",
+    summary="Logout user",
+    description="Invalidate the refresh token and logout the user",
+    tags=["Authentication"]
+)
+def logout(logout_data: schemas.LogoutRequest = None):
+    """Logout user by invalidating refresh token"""
+    if logout_data and logout_data.refresh_token:
+        try:
+            auth.logout_user(logout_data.refresh_token)
+        except Exception as e:
+            # If token is already invalid or expired, still return success
+            pass
+    return {"message": "Successfully logged out"}
+
+@app.get(
+    "/auth/keycloak-logout-url",
+    summary="Get Keycloak logout URL",
+    description="Returns the Keycloak logout URL to end the SSO session",
+    tags=["Authentication"]
+)
+def get_keycloak_logout_url():
+    """Get the Keycloak logout URL to clear SSO session"""
+    logout_url = f"{keycloak_config.KEYCLOAK_SERVER_URL}/realms/{keycloak_config.KEYCLOAK_REALM}/protocol/openid-connect/logout"
+    return {
+        "logout_url": logout_url,
+        "redirect_uri": "http://localhost:5173/",
+        "full_url": f"{logout_url}?redirect_uri=http://localhost:5173/",
+        "message": "Redirect user to full_url to logout from Keycloak and return to frontend"
+    }
+
+@app.get(
+    "/auth/me",
+    response_model=schemas.UserResponse,
+    summary="Get current user info",
+    description="Get the authenticated user's information",
+    tags=["Authentication"]
+)
+def get_me(current_user: models.User = Depends(get_current_user)):
+    """Get current authenticated user information"""
     return current_user
 
 # --------------------------------------------------------------------
@@ -269,11 +352,16 @@ def get_all_collections(
     "/users",
     response_model=schemas.UserResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Create new user",
-    description="Register a new user in the system.",
+    summary="Create new user (Admin only)",
+    description="Manually register a new user in the system. Admin only. Note: Users are auto-created via Keycloak.",
     tags=["Users"]
 )
-def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+def create_user(
+    user: schemas.UserCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_admin)
+):
+    """Admin only: Manually create a user (normally users are created via Keycloak)"""
     existing = db.query(models.User).filter(models.User.username == user.username).first()
     if existing:
         raise HTTPException(status_code=400, detail="Username already exists")
@@ -286,11 +374,15 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
 @app.get(
     "/list_users",
     response_model=List[schemas.UserResponse],
-    summary="List all users",
-    description="Retrieve a list of all registered users.",
+    summary="List all users (Admin only)",
+    description="Retrieve a list of all registered users. Admin only.",
     tags=["Users"]
 )
-def list_users(db: Session = Depends(get_db)):
+def list_users(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_admin)
+):
+    """Admin only: List all users"""
     return db.query(models.User).all()
 
 
@@ -352,9 +444,12 @@ def root():
     """API root information."""
     return {
         "message": "Welcome to the Music Collection Manager API",
+        "authentication": "Keycloak OAuth2",
         "docs": "/docs",
         "redoc": "/redoc",
-        "version": "1.0.0"
+        "version": "2.0.0",
+        "keycloak_server": keycloak_config.KEYCLOAK_SERVER_URL,
+        "realm": keycloak_config.KEYCLOAK_REALM
     }
 
 # --------------------------------------------------------------------

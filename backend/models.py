@@ -20,7 +20,8 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
-    password = Column(String, nullable=False)
+    keycloak_id = Column(String, unique=True, index=True, nullable=True)  # Keycloak user ID
+    password = Column(String, nullable=True)  # Optional: for non-Keycloak users
     role = Column(SQLEnum(UserRole), default=UserRole.USER, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     

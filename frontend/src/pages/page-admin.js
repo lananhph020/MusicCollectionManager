@@ -1,5 +1,5 @@
-import {LitElement, html, css} from 'lit';
-import { musicApi, usersApi, getCurrentUser } from '../services/api.js';
+import { LitElement, html, css } from 'lit';
+import { musicApi, usersApi } from '../services/api.js';
 
 // Robustly find the <form> for submit handlers across shadow DOM/HMR
 function getEventForm(e) {
@@ -21,26 +21,20 @@ export class PageAdmin extends LitElement {
     li{padding:.5rem 0;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center}
     [role="alert"]{color:#b00020}
   `;
-  static properties = { denied:{state:true}, items:{state:true}, loading:{state:true}, error:{state:true}, allUsers:{type:Array} };
+  static properties = { items:{state:true}, loading:{state:true}, error:{state:true} };
 
   constructor(){ 
     super(); 
-    this.denied=true; 
     this.items=[]; 
     this.loading=true; 
     this.error=null; 
-    this.allUsers=[]; 
   }
 
   async connectedCallback(){
     super.connectedCallback();
-    const uid = getCurrentUser();
-    if(!uid){ this.denied=true; this.loading=false; return; }
     try{
-      const users = this.allUsers?.length ? this.allUsers : await usersApi.list();
-      const me = users.find(u=>u.id===uid);
-      this.denied = !me || me.role !== 'admin';
-      if(!this.denied) this.items = await musicApi.list();
+      this.items = await musicApi.list();
+      this.error = null;
     }catch(e){ 
       this.error = e.message; 
     }
@@ -79,7 +73,7 @@ export class PageAdmin extends LitElement {
 
   render(){
     if(this.loading) return html`<section><p>Loading…</p></section>`;
-    if(this.denied) return html`<section><p role="alert">Admin access required (pick an admin user).</p></section>`;
+    if(this.error && this.error.includes('403')) return html`<section><p role="alert">Admin access required. Only admins can manage music.</p></section>`;
     return html`
       <section>
         <h2>Admin · Manage Music</h2>

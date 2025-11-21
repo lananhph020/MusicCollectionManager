@@ -1,0 +1,16 @@
+# Web framework
+fastapi>=0.110.0,<1.0.0
+
+# ASGI server
+uvicorn>=0.23.0,<1.0.0
+
+# ORM / Database
+SQLAlchemy>=2.0.0,<3.0.0
+
+# Validation (Pydantic v2) and email support
+pydantic>=2.5.0,<3.0.0
+email-validator>=2.0.0
+
+# Keycloak Authentication
+python-keycloak>=3.9.0
+python-jose[cryptography]>=3.3.0

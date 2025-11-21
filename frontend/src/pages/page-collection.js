@@ -1,5 +1,5 @@
-import {LitElement, html, css} from 'lit';
-import { collectionApi, getCurrentUser } from '../services/api.js';
+import { LitElement, html, css } from 'lit';
+import { collectionApi } from '../services/api.js';
 
 export class PageCollection extends LitElement {
   static styles = css`
@@ -14,7 +14,6 @@ export class PageCollection extends LitElement {
   connectedCallback(){ super.connectedCallback(); this._load(); }
 
   async _load(){
-    if(!getCurrentUser()){ this.error='Pick a user on Users page or header to see your collection.'; this.loading=false; return; }
     try{ this.items = await collectionApi.mine(); this.error=null; }
     catch(e){ this.error = e.message; }
     finally{ this.loading=false; }

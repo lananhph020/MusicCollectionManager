@@ -1,5 +1,5 @@
-import {LitElement, html, css} from 'lit';
-import { musicApi, commentsApi, collectionApi, getCurrentUser } from '../services/api.js';
+import { LitElement, html, css } from 'lit';
+import { musicApi, commentsApi, collectionApi } from '../services/api.js';
 
 export class PageMusicDetail extends LitElement {
   static styles = css`
@@ -45,14 +45,12 @@ export class PageMusicDetail extends LitElement {
   }
 
   async addToCollection(){
-    if(!getCurrentUser()){ alert('Pick a user (header → Users) first.'); return; }
     try{ await collectionApi.add(this.musicId, 'none'); alert('Added to your collection'); }
     catch(e){ alert(e.message); }
   }
 
   async addComment(e){
     e.preventDefault();
-    if(!getCurrentUser()){ alert('Pick a user first.'); return; }
 
     // deterministic: grab the form by id inside shadow DOM
     const form = this.renderRoot?.getElementById('commentForm');

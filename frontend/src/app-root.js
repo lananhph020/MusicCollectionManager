@@ -1,5 +1,5 @@
 import { LitElement, html, css } from 'lit';
-import { usersApi, getCurrentUser, setCurrentUser } from './services/api.js';
+import { authApi, usersApi, getToken, setToken, getCurrentUserInfo, setCurrentUserInfo, clearTokens } from './services/api.js';
 import './pages/page-users.js';
 import './pages/page-music-list.js';
 import './pages/page-music-detail.js';
@@ -13,32 +13,38 @@ class AppRoot extends LitElement {
     header a { text-decoration:none }
     nav a { margin-right:.75rem; }
     main { padding:0 }
-    select, button { padding:.45rem .6rem; border:1px solid #ccc; border-radius:10px; background:#fff; }
+    button, a.btn { padding:.45rem .6rem; border:1px solid #ccc; border-radius:10px; background:#fff; cursor:pointer; text-decoration:none; display:inline-block; }
+    button:hover, a.btn:hover { background:#f5f5f5; }
     .spacer { flex: 1 1 auto; }
   `;
   static properties = {
     route: {state:true},
     params: {state:true},
-    users: {state:true},
-    currentId: {state:true},
-    loadingUsers: {state:true},
-    userError: {state:true},
+    currentUser: {state:true},
+    isAuthenticated: {state:true},
+    loading: {state:true},
   };
 
   constructor(){
     super();
     this.route = this._parseRoute();
     this.params = {};
-    this.users = [];
-    this.currentId = getCurrentUser();
-    this.loadingUsers = true;
-    this.userError = null;
+    this.currentUser = getCurrentUserInfo();
+    this.isAuthenticated = !!getToken();
+    this.loading = false;
   }
 
   connectedCallback(){
     super.connectedCallback();
     window.addEventListener('hashchange', ()=>{ this.route = this._parseRoute(); this.requestUpdate(); });
-    this._loadUsers();
+    
+    // Check if returning from Keycloak callback
+    this._handleCallback();
+    
+    // Load current user if authenticated
+    if (this.isAuthenticated && !this.currentUser) {
+      this._loadCurrentUser();
+    }
   }
 
   _parseRoute(){
@@ -49,50 +55,120 @@ class AppRoot extends LitElement {
     return hash;
   }
 
-  async _loadUsers(){
-    this.loadingUsers = true;
-    try { this.users = await usersApi.list(); this.userError = null; }
-    catch(e){ this.userError = e.message; }
-    finally { this.loadingUsers = false; }
+  async _handleCallback() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    
+    if (code) {
+      this.loading = true;
+      try {
+        const redirectUri = `${window.location.origin}${window.location.pathname}`;
+        const tokenData = await authApi.exchangeToken(code, redirectUri);
+        setToken(tokenData.access_token, tokenData.refresh_token);
+        
+        // Get user info
+        const user = await authApi.getCurrentUser();
+        setCurrentUserInfo(user);
+        this.currentUser = user;
+        this.isAuthenticated = true;
+        
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname + '#/music');
+      } catch (e) {
+        console.error('Authentication failed:', e);
+        alert('Login failed: ' + e.message);
+      } finally {
+        this.loading = false;
+      }
+    }
   }
 
-  onPickUser(e){
-    const id = e.target.value ? Number(e.target.value) : null;
-    setCurrentUser(id);
-    this.currentId = id;
+  async _loadCurrentUser() {
+    try {
+      const user = await authApi.getCurrentUser();
+      setCurrentUserInfo(user);
+      this.currentUser = user;
+    } catch (e) {
+      console.error('Failed to load user:', e);
+      clearTokens();
+      this.isAuthenticated = false;
+      this.currentUser = null;
+    }
+  }
+
+  async onLogin() {
+    try {
+      const { login_url } = await authApi.getLoginUrl();
+      window.location.href = login_url;
+    } catch (e) {
+      alert('Failed to get login URL: ' + e.message);
+    }
+  }
+
+  async onLogout() {
+    try {
+      await authApi.logout();
+      clearTokens();
+      this.isAuthenticated = false;
+      this.currentUser = null;
+      // Redirect to home page after logout
+      window.location.href = 'http://localhost:5173/';
+    } catch (e) {
+      console.error('Logout failed:', e);
+      clearTokens();
+      this.isAuthenticated = false;
+      this.currentUser = null;
+      window.location.href = 'http://localhost:5173/';
+    }
   }
 
   _renderPage(){
+    if (!this.isAuthenticated) {
+      return html`
+        <section style="padding:2rem; text-align:center">
+          <h2>Welcome to Music Collection Manager</h2>
+          <p>Please login to continue</p>
+          <button @click=${this.onLogin}>Login with Keycloak</button>
+        </section>
+      `;
+    }
+    
     switch(this.route){
-      case '/users': return html`<page-users .allUsers=${this.users} @refresh-users=${()=>this._loadUsers()}></page-users>`;
+      case '/users': return html`<page-users></page-users>`;
       case '/music': return html`<page-music-list></page-music-list>`;
       case '/music/:id': return html`<page-music-detail .musicId=${this.params.id}></page-music-detail>`;
       case '/collection': return html`<page-collection></page-collection>`;
-      case '/admin': return html`<page-admin .allUsers=${this.users}></page-admin>`;
+      case '/admin': return html`<page-admin></page-admin>`;
       default: return html`<section style="padding:1rem"><p>Not found</p></section>`;
     }
   }
 
   render(){
+    if (this.loading) {
+      return html`<div style="padding:2rem; text-align:center">Loading...</div>`;
+    }
+    
     return html`
       <header>
         <a href="#/music"><b>🎵 Music App</b></a>
-        <nav>
-          <a href="#/music">Music</a>
-          <a href="#/collection">My Collection</a>
-          <a href="#/users">Users</a>
-          <a href="#/admin">Admin</a>
-        </nav>
+        ${this.isAuthenticated ? html`
+          <nav>
+            <a href="#/music">Music</a>
+            <a href="#/collection">My Collection</a>
+            ${this.currentUser?.role === 'admin' ? html`
+              <a href="#/users">Users</a>
+              <a href="#/admin">Admin</a>
+            ` : null}
+          </nav>
+        ` : null}
         <div class="spacer"></div>
 
-        <label>Signed in:
-          <select @change=${this.onPickUser}>
-            <option value="">— none —</option>
-            ${this.users.map(u=>html`<option value=${u.id} ?selected=${this.currentId===u.id}>${u.username} (${u.role})</option>`)}
-          </select>
-        </label>
-        ${this.loadingUsers ? html`<small style="margin-left:.5rem;color:#666">loading…</small>` : null}
-        ${this.userError ? html`<small role="alert" style="margin-left:.5rem;color:#b00020">${this.userError}</small>` : null}
+        ${this.isAuthenticated ? html`
+          <span>Signed in as: <b>${this.currentUser?.username}</b> (${this.currentUser?.role})</span>
+          <button @click=${this.onLogout}>Logout</button>
+        ` : html`
+          <button @click=${this.onLogin}>Login</button>
+        `}
       </header>
       <main>
         ${this._renderPage()}

@@ -1,5 +1,5 @@
-import {LitElement, html, css} from 'lit';
-import { musicApi, collectionApi, getCurrentUser } from '../services/api.js';
+import { LitElement, html, css } from 'lit';
+import { musicApi, collectionApi } from '../services/api.js';
 
 export class PageMusicList extends LitElement {
   static styles = css`
@@ -22,7 +22,6 @@ export class PageMusicList extends LitElement {
   }
 
   async add(musicId){
-    if(!getCurrentUser()){ alert('Pick a user first on Users page or header.'); return; }
     this.adding.add(musicId); this.requestUpdate();
     try{ await collectionApi.add(musicId, 'none'); alert('Added to your collection'); }
     catch(e){ alert(e.message); }

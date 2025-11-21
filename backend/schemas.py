@@ -89,3 +89,23 @@ class CommentResponse(BaseModel):
     content: str
     rating: Optional[int]
     created_at: datetime
+
+class Config:
+        from_attributes = True
+
+# Keycloak Authentication Schemas
+class Token(BaseModel):
+    access_token: str
+    refresh_token: Optional[str] = None
+    token_type: str = "bearer"
+    expires_in: Optional[int] = None
+
+class TokenExchange(BaseModel):
+    code: str
+    redirect_uri: str = "http://localhost:5173/callback"
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+class LogoutRequest(BaseModel):
+    refresh_token: Optional[str] = None
